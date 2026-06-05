@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Word Quest Academy v2.21</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="favicon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="title-art">
+      <img src="assets/wordquest-banner.png" alt="Word Quest Academy">
+    </div>
+    <div class="stats">
+      <span>⭐ XP: <b id="xp">0</b></span>
+      <span>🏆 Stars: <b id="stars">0</b></span>
+      <span class="version">v2.21</span>
+    </div>
+  </header>
+
+  <nav id="tabs">
+    <button onclick="show('manager')">📚 Words</button>
+    <button onclick="show('hangman')">🛡️ Dungeon Rescue</button>
+    <button onclick="show('builder')">🏰 Castle Blocks</button>
+    <button onclick="show('memory')">🪄 Wizard Memory</button>
+    <button onclick="show('search')">🗺️ Treasure Map</button>
+    <button onclick="show('achievements')">🏅 Achievements</button>
+    <button onclick="show('reports')">📊 Reports</button>
+  </nav>
+
+  <main>
+    <section id="manager" class="page active">
+      <div class="card">
+        <h2>📚 Word Manager</h2>
+        <p>Add one spelling word per line. All games use this shared word list.</p>
+        <textarea id="wordInput"></textarea>
+        <div class="row">
+          <button class="primary" onclick="saveWords()">Save Words</button>
+          <button onclick="clearActiveWords()">Clear Active List</button>
+          <button onclick="resetProgress()">Reset Progress</button>
+        </div>
+        <p id="wordCount"></p>
+        <div class="saved-lists-panel">
+          <h3>💾 Saved Word Lists</h3>
+          <p>Name the current list, save it, then load it again later.</p>
+          <div class="row">
+            <input id="listName" placeholder="List name, e.g. Week 1 spelling">
+            <button class="primary" onclick="saveNamedList()">Save Named List</button>
+          </div>
+          <div id="savedListsBox"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="hangman" class="page"><div class="card"><h2>🛡️ Dungeon Rescue Quest</h2><div id="hangmanGame"></div></div></section>
+    <section id="builder" class="page"><div class="card"><h2>🏰 Castle Blocks</h2><div id="builderGame"></div></div></section>
+    <section id="memory" class="page"><div class="card"><h2>🪄 Wizard Memory Spell</h2><div id="memoryGame"></div></div></section>
+    <section id="search" class="page"><div class="card"><h2>🗺️ Treasure Map</h2><div id="wordSearchGame"></div></div></section>
+    <section id="achievements" class="page"><div class="card"><h2>🏅 Achievements</h2><div id="achievementsBox"></div></div></section>
+    <section id="reports" class="page"><div class="card"><h2>📊 Parent / Teacher Report</h2><div id="reportBox"></div></div></section>
+  </main>
+
+  <div id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
