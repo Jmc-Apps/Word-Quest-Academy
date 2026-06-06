@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Word Quest Academy v2.21</title>
+  <title>Word Quest Academy v2.23</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="favicon.png">
   <link rel="stylesheet" href="styles.css">
@@ -16,7 +16,7 @@
     <div class="stats">
       <span>⭐ XP: <b id="xp">0</b></span>
       <span>🏆 Stars: <b id="stars">0</b></span>
-      <span class="version">v2.21</span>
+      <span class="version">v2.23</span>
     </div>
   </header>
 
@@ -26,8 +26,11 @@
     <button onclick="show('builder')">🏰 Castle Blocks</button>
     <button onclick="show('memory')">🪄 Wizard Memory</button>
     <button onclick="show('search')">🗺️ Treasure Map</button>
+    <button onclick="show('dragon')">🐉 Dragon Battle</button>
+    <button onclick="show('defense')">🏰 Castle Defense</button>
     <button onclick="show('achievements')">🏅 Achievements</button>
     <button onclick="show('reports')">📊 Reports</button>
+    <button onclick="show('settings')">⚙️ Settings & Backup</button>
   </nav>
 
   <main>
@@ -58,8 +61,52 @@
     <section id="builder" class="page"><div class="card"><h2>🏰 Castle Blocks</h2><div id="builderGame"></div></div></section>
     <section id="memory" class="page"><div class="card"><h2>🪄 Wizard Memory Spell</h2><div id="memoryGame"></div></div></section>
     <section id="search" class="page"><div class="card"><h2>🗺️ Treasure Map</h2><div id="wordSearchGame"></div></div></section>
+    
+    <section id="dragon" class="page">
+      <div class="card">
+        <h2>🐉 Dragon Battle</h2>
+        <div id="dragonGame"></div>
+      </div>
+    </section>
+    <section id="defense" class="page">
+      <div class="card">
+        <h2>🏰 Castle Defense</h2>
+        <div id="defenseGame"></div>
+      </div>
+    </section>
+
     <section id="achievements" class="page"><div class="card"><h2>🏅 Achievements</h2><div id="achievementsBox"></div></div></section>
     <section id="reports" class="page"><div class="card"><h2>📊 Parent / Teacher Report</h2><div id="reportBox"></div></div></section>
+
+    <section id="settings" class="page">
+      <div class="card">
+        <h2>⚙️ Settings & Backup</h2>
+        <div class="settings-grid">
+          <div class="settings-card">
+            <h3>🔊 Sound Effects</h3>
+            <p>Turn success, mistake and reward sounds on or off.</p>
+            <button class="primary" onclick="toggleSound()" id="soundToggleBtn">Sound: On</button>
+          </div>
+          <div class="settings-card">
+            <h3>💾 Backup Progress</h3>
+            <p>Export everything: words, saved lists, XP, stars, achievements and stats.</p>
+            <button onclick="exportFullBackup()">Export Backup File</button>
+          </div>
+          <div class="settings-card">
+            <h3>📥 Restore Backup</h3>
+            <p>Restore a backup on this or another device.</p>
+            <input type="file" id="backupFile" accept=".json,application/json">
+            <button onclick="importFullBackup()">Import Backup File</button>
+          </div>
+          <div class="settings-card">
+            <h3>📚 Export Word Lists Only</h3>
+            <p>Save just your saved spelling lists.</p>
+            <button onclick="exportWordListsOnly()">Export Word Lists</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <div id="toast"></div>

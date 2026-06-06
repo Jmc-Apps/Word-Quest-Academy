@@ -1,11 +1,11 @@
 {
-  "name": "Word Quest Academy v2.21",
+  "name": "Word Quest Academy v2.23",
   "short_name": "WordQuest",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1b0707",
   "theme_color": "#7b1818",
-  "description": "Word Quest Academy spelling PWA with red and gold fantasy branding.",
+  "description": "Adds Dragon Battle and Castle Defense memory-spelling mini games.",
   "icons": [
     {
       "src": "icons/icon-192.png",

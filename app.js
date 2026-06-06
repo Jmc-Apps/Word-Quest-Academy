@@ -2,8 +2,8 @@
 const DEFAULT_WORDS = [];
 const PROTECTED_DEMO_LIST_NAME = 'Demo Words';
 const PROTECTED_DEMO_WORDS = ['because','friend','people','school','answer','adventure','mountain','castle','rocket','treasure'];
-let state = JSON.parse(localStorage.getItem('wqa_state_v221') || 'null') || {
-  words: DEFAULT_WORDS, xp:0, stars:0, correct:0, attempts:0, games:{hangman:0,builder:0,memory:0,search:0}
+let state = JSON.parse(localStorage.getItem('wqa_state_v223') || 'null') || {
+  words: DEFAULT_WORDS, xp:0, stars:0, correct:0, attempts:0, sound:true, rewardCount:0, games:{hangman:0,builder:0,memory:0,search:0,dragon:0,defense:0}
 };
 
 const $ = id => document.getElementById(id);
@@ -31,8 +31,125 @@ function requireWords(targetId){
   $(targetId).innerHTML = `<div class="big-word">📚</div><p>Add or load a word list first.</p><button onclick="show('manager')">Go to Word Manager</button>`;
   return false;
 }
-function save(){ localStorage.setItem('wqa_state_v221', JSON.stringify(state)); updateStats(); }
+function save(){ ensureV222State(); localStorage.setItem('wqa_state_v223', JSON.stringify(state)); updateStats(); updateSoundButton(); }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',1500); }
+
+function ensureV222State(){
+  if(typeof state.sound === 'undefined') state.sound = true;
+  if(typeof state.rewardCount === 'undefined') state.rewardCount = 0;
+}
+function playSound(type='success'){
+  if(!state.sound) return;
+  try{
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const sequences = {
+      success:[[660,.07],[880,.09]],
+      fail:[[190,.14]],
+      reward:[[523,.07],[659,.07],[784,.11]],
+      chest:[[392,.08],[523,.08],[659,.13]],
+      click:[[440,.04]]
+    };
+    const notes = sequences[type] || sequences.success;
+    let t = ctx.currentTime;
+    osc.type = type==='fail' ? 'sawtooth' : 'triangle';
+    osc.connect(gain); gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.0001,t);
+    osc.start(t);
+    notes.forEach(([freq,dur])=>{
+      osc.frequency.setValueAtTime(freq,t);
+      gain.gain.exponentialRampToValueAtTime(0.11,t+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      t += dur + 0.025;
+    });
+    osc.stop(t);
+  }catch(e){}
+}
+function rewardFloat(text){
+  const div=document.createElement('div');
+  div.className='reward-float';
+  div.textContent=text;
+  document.body.appendChild(div);
+  setTimeout(()=>div.remove(),1600);
+}
+function chestReward(){
+  state.rewardCount = (state.rewardCount || 0) + 1;
+  if(state.rewardCount % 5 === 0){
+    state.xp += 25;
+    state.stars += 2;
+    playSound('chest');
+    showChest('+25 XP  +2 Stars');
+  }
+}
+function showChest(text){
+  const div=document.createElement('div');
+  div.className='chest-reward';
+  div.innerHTML=`<div class="chest-icon">🎁</div><h3>Treasure Chest!</h3><p>${text}</p>`;
+  document.body.appendChild(div);
+  setTimeout(()=>div.classList.add('open'),40);
+  setTimeout(()=>div.remove(),2300);
+}
+function toggleSound(){
+  ensureV222State();
+  state.sound=!state.sound;
+  save();
+  updateSoundButton();
+  playSound('click');
+}
+function updateSoundButton(){
+  const b=$('soundToggleBtn');
+  if(b) b.textContent = state.sound ? 'Sound: On' : 'Sound: Off';
+}
+function downloadJson(filename,data){
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),500);
+}
+function exportFullBackup(){
+  const backup={
+    app:'Word Quest Academy',
+    version:'2.22',
+    exportedAt:new Date().toISOString(),
+    state,
+    savedLists:getSavedLists()
+  };
+  downloadJson('word-quest-academy-backup-v2-22.json', backup);
+  toast('Backup exported');
+}
+function importFullBackup(){
+  const input=$('backupFile');
+  if(!input || !input.files || !input.files[0]){ toast('Choose a backup file first'); return; }
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(data.state){
+        state=data.state;
+        ensureV222State();
+        save();
+      }
+      if(data.savedLists){
+        setSavedLists(data.savedLists);
+      }
+      loadAllGames();
+      updateSoundButton();
+      toast('Backup restored');
+    }catch(e){
+      toast('Could not import backup');
+    }
+  };
+  reader.readAsText(input.files[0]);
+}
+function exportWordListsOnly(){
+  downloadJson('word-quest-word-lists.json', {app:'Word Quest Academy', type:'word-lists', savedLists:getSavedLists()});
+  toast('Word lists exported');
+}
+
 function updateStats(){ $('xp').textContent=state.xp; $('stars').textContent=state.stars; }
 function show(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -43,10 +160,15 @@ function show(id){
   if(id==='achievements') loadAchievements();
 }
 function reward(game,xp=10,stars=0){
-  state.xp+=xp; state.stars+=stars; state.correct++; state.attempts++; state.games[game]=(state.games[game]||0)+1; save();
-  toast(`+${xp} XP${stars?` +${stars} star`:''}`); loadAchievements(); loadReports();
+  state.xp+=xp; state.stars+=stars; state.correct++; state.attempts++; state.games[game]=(state.games[game]||0)+1;
+  chestReward();
+  save();
+  playSound('success');
+  rewardFloat(`+${xp} XP${stars?`  +${stars} ⭐`:''}`);
+  toast(`+${xp} XP${stars?` +${stars} star`:''}`);
+  loadAchievements(); loadReports();
 }
-function miss(){ state.attempts++; save(); }
+function miss(){ state.attempts++; save(); playSound('fail'); }
 
 function getSavedLists(){
   const lists = JSON.parse(localStorage.getItem('wqa_saved_word_lists_v219') || '{}');
@@ -119,7 +241,7 @@ function loadDemoWords(){
 }
 function resetProgress(){
   if(confirm('Reset XP, stars and reports? Your word list will stay.')){
-    const keep=state.words; state={words:keep,xp:0,stars:0,correct:0,attempts:0,games:{hangman:0,builder:0,memory:0,search:0}};
+    const keep=state.words; state={words:keep,xp:0,stars:0,correct:0,attempts:0,sound:true,rewardCount:0,games:{hangman:0,builder:0,memory:0,search:0,dragon:0,defense:0}};
     save(); loadAllGames(); toast('Progress reset');
   }
 }
@@ -247,7 +369,7 @@ function loadHangman(){
       }
       $('hmWord').textContent=hidden.join(' ');
       $('hmInfo').textContent=`Rescue mistakes: ${misses} / 6`;
-      if(hidden.join('').toLowerCase()===w){ reward('hangman',12,1); setTimeout(loadHangman,700); }
+      if(hidden.join('').toLowerCase()===w){ document.querySelector('#hangmanGame .knight-svg')?.classList.add('victory'); reward('hangman',12,1); setTimeout(loadHangman,1100); }
       if(misses>=6){ miss(); toast(`The word was ${w}`); setTimeout(loadHangman,900); }
     };
     $('hmKeys').appendChild(b);
@@ -507,14 +629,170 @@ function hintSearch(){
   if(c){ c.classList.add('sel'); setTimeout(()=>c.classList.remove('sel'),900); }
 }
 
+
+/* v2.23 Dragon Battle and Castle Defense */
+let dragonState = { hp:100, player:100, word:'' };
+let defenseState = { wall:100, wave:1, word:'' };
+
+function memoryFlashGame(targetId, word, afterFlash){
+  const box=$(targetId);
+  box.innerHTML = `
+    <div class="flash-card">
+      <p>Memorise this word!</p>
+      <div class="flash-word">${word.toUpperCase()}</div>
+      <div class="flash-count" id="${targetId}Count">5</div>
+    </div>`;
+  let count=5;
+  const timer=setInterval(()=>{
+    count--;
+    const c=$(targetId+'Count');
+    if(c) c.textContent=count;
+    if(count<=0){
+      clearInterval(timer);
+      afterFlash();
+    }
+  },1000);
+}
+
+function makeSpellKeyboard(containerId, onCheck){
+  const wrap=document.createElement('div');
+  wrap.innerHTML = `
+    <div class="big-word" id="${containerId}Built">_</div>
+    <div class="keyboard" id="${containerId}Keys"></div>
+    <div class="row">
+      <button id="${containerId}Back">⌫ Backspace</button>
+      <button id="${containerId}Clear">Clear</button>
+      <button id="${containerId}Check">Cast Spell</button>
+    </div>`;
+  $(containerId).appendChild(wrap);
+  let typed='';
+  const built=$(containerId+'Built');
+  function update(){ built.textContent = typed ? typed.toUpperCase().split('').join(' ') : '_'; }
+  'abcdefghijklmnopqrstuvwxyz'.split('').forEach(ch=>{
+    const b=document.createElement('button');
+    b.textContent=ch.toUpperCase();
+    b.onclick=()=>{ typed+=ch; update(); playSound('click'); };
+    $(containerId+'Keys').appendChild(b);
+  });
+  $(containerId+'Back').onclick=()=>{ typed=typed.slice(0,-1); update(); };
+  $(containerId+'Clear').onclick=()=>{ typed=''; update(); };
+  $(containerId+'Check').onclick=()=>onCheck(typed, ()=>{typed=''; update();});
+}
+
+function loadDragon(){
+  if(!requireWords('dragonGame')) return;
+  dragonState = {hp:100, player:100, word:randomWord('dragon')};
+  dragonFlash();
+}
+function dragonFlash(){
+  memoryFlashGame('dragonGame', dragonState.word, dragonChallenge);
+}
+function dragonChallenge(){
+  $('dragonGame').innerHTML = `
+    <div class="battle-layout">
+      <div class="enemy-card">
+        <div class="dragon-emoji">🐉</div>
+        <h3>Fire Dragon</h3>
+        <p>Dragon Health</p>
+        <div class="healthbar"><div id="dragonHP" style="width:${dragonState.hp}%"></div></div>
+      </div>
+      <div class="enemy-card">
+        <div class="dragon-emoji">🛡️</div>
+        <h3>Your Shield</h3>
+        <p>Shield Strength</p>
+        <div class="healthbar player"><div id="playerHP" style="width:${dragonState.player}%"></div></div>
+      </div>
+    </div>
+    <p>The word flashed for 5 seconds. Spell it from memory to attack.</p>
+    <div id="dragonSpell"></div>
+    <button onclick="loadDragon()">New Dragon</button>`;
+  makeSpellKeyboard('dragonSpell', (typed, clear)=>{
+    if(typed===dragonState.word){
+      dragonState.hp=Math.max(0,dragonState.hp-50);
+      $('dragonHP').style.width=dragonState.hp+'%';
+      rewardFloat('Dragon hit! 🔥');
+      if(dragonState.hp<=0){
+        reward('dragon',25,2);
+        setTimeout(loadDragon,900);
+      } else {
+        dragonState.word=randomWord('dragon');
+        setTimeout(dragonFlash,800);
+      }
+    } else {
+      dragonState.player=Math.max(0,dragonState.player-35);
+      $('playerHP').style.width=dragonState.player+'%';
+      miss();
+      toast(`Dragon blocked it! Word was ${dragonState.word}`);
+      if(dragonState.player<=0) setTimeout(loadDragon,1000);
+      else { dragonState.word=randomWord('dragon'); setTimeout(dragonFlash,1100); }
+    }
+    clear();
+  });
+}
+
+function loadDefense(){
+  if(!requireWords('defenseGame')) return;
+  defenseState = {wall:100, wave:1, word:randomWord('defense')};
+  defenseFlash();
+}
+function defenseFlash(){
+  memoryFlashGame('defenseGame', defenseState.word, defenseChallenge);
+}
+function defenseChallenge(){
+  $('defenseGame').innerHTML = `
+    <div class="castle-defense-scene">
+      <div class="castle-art">🏰</div>
+      <div class="goblin-line">${'👺'.repeat(Math.min(5,defenseState.wave+1))}</div>
+      <p>Castle Wall</p>
+      <div class="healthbar castle"><div id="castleWall" style="width:${defenseState.wall}%"></div></div>
+      <p>Wave ${defenseState.wave} of 5</p>
+    </div>
+    <p>The word flashed for 5 seconds. Spell it from memory to fire the catapult.</p>
+    <div id="defenseSpell"></div>
+    <button onclick="loadDefense()">Restart Defense</button>`;
+  makeSpellKeyboard('defenseSpell', (typed, clear)=>{
+    if(typed===defenseState.word){
+      rewardFloat('Catapult fired! 🪨');
+      defenseState.wave++;
+      if(defenseState.wave>5){
+        reward('defense',30,2);
+        toast('Castle defended!');
+        setTimeout(loadDefense,1000);
+      } else {
+        reward('defense',8,0);
+        defenseState.word=randomWord('defense');
+        setTimeout(defenseFlash,900);
+      }
+    } else {
+      defenseState.wall=Math.max(0,defenseState.wall-25);
+      $('castleWall').style.width=defenseState.wall+'%';
+      miss();
+      toast(`The goblins hit the wall! Word was ${defenseState.word}`);
+      if(defenseState.wall<=0) setTimeout(loadDefense,1000);
+      else { defenseState.word=randomWord('defense'); setTimeout(defenseFlash,1100); }
+    }
+    clear();
+  });
+}
+
+
 function loadAchievements(){
+  ensureV222State();
   const badges=[
-    ['First Win',state.correct>=1,'🏅'],
-    ['Rising Speller',state.correct>=5,'⭐'],
-    ['Word Search Explorer',(state.games.search||0)>=3,'🔍'],
-    ['Word Master',state.correct>=20,'👑']
+    ['Bronze Shield',state.correct>=1,'🛡️','Complete your first word'],
+    ['Silver Shield',state.correct>=5,'⚔️','Complete 5 words'],
+    ['Gold Shield',state.correct>=15,'🏆','Complete 15 words'],
+    ['Treasure Hunter',state.rewardCount>=5,'🎁','Earn a treasure chest'],
+    ['Treasure Map Explorer',(state.games.search||0)>=3,'🗺️','Find words in Treasure Map'],
+    ['Dragon Medal',state.correct>=30,'🐉','Complete 30 words'],
+    ['Dragon Slayer',(state.games.dragon||0)>=1,'🔥','Win Dragon Battle'],
+    ['Castle Defender',(state.games.defense||0)>=1,'🏰','Win Castle Defense']
   ];
-  $('achievementsBox').innerHTML=badges.map(([name,ok,icon])=>`<div class="badge"><h3>${icon} ${name}</h3><p>${ok?'Unlocked ✅':'Keep playing to unlock'}</p></div>`).join('');
+  $('achievementsBox').innerHTML=badges.map(([name,ok,icon,desc])=>`
+    <div class="badge fantasy-badge ${ok?'unlocked':'locked'}">
+      <div class="badge-icon">${icon}</div>
+      <div><h3>${name}</h3><p>${ok?'Unlocked ✅':desc}</p></div>
+    </div>`).join('');
 }
 function loadReports(){
   const accuracy=state.attempts?Math.round((state.correct/state.attempts)*100):0;
@@ -546,9 +824,10 @@ function renderSavedLists(){
 function loadAllGames(){
   $('wordInput').value=state.words.join('\n');
   updateWordCount(); updateStats();
-  loadHangman(); loadBuilder(); loadMemory(); loadSearch(); loadAchievements(); loadReports(); renderSavedLists();
+  ensureV222State(); loadHangman(); loadBuilder(); loadMemory(); loadSearch(); loadDragon(); loadDefense(); loadAchievements(); loadReports(); renderSavedLists(); updateSoundButton();
 }
 
+ensureV222State();
 loadAllGames();
 show('manager');
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('service-worker.js'); }
