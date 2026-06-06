@@ -1,10 +1,10 @@
-const APP_VERSION = 'v2.31';
+const APP_VERSION = 'v2.35';
 
 const DEFAULT_WORDS = [];
 const PROTECTED_DEMO_LIST_NAME = 'Demo Words';
 const PROTECTED_DEMO_WORDS = ['because','friend','people','school','answer','adventure','mountain','castle','rocket','treasure'];
-let state = JSON.parse(localStorage.getItem('wqa_state_v231') || localStorage.getItem('wqa_state_v228') || 'null') || {
-  words: DEFAULT_WORDS, xp:0, stars:0, correct:0, attempts:0, sound:true, rewardCount:0, wordStats:{}, games:{hangman:0,builder:0,memory:0,search:0,dragon:0,defense:0}
+let state = JSON.parse(localStorage.getItem('wqa_state_v235') || localStorage.getItem('wqa_state_v234') || localStorage.getItem('wqa_state_v233') || localStorage.getItem('wqa_state_v232') || localStorage.getItem('wqa_state_v231') || 'null') || {
+  words: DEFAULT_WORDS, activeListName:'', xp:0, stars:0, correct:0, attempts:0, sound:true, rewardCount:0, wordStats:{}, games:{hangman:0,builder:0,memory:0,search:0,dragon:0,defense:0}
 };
 
 const $ = id => document.getElementById(id);
@@ -45,13 +45,16 @@ function startScreen(targetId, title, description, buttonText, startFn){
     </div>`;
 }
 
-function save(){ updateVersionDisplay(); ensureV229State(); localStorage.setItem('wqa_state_v231', JSON.stringify(state)); updateStats(); updateSoundButton(); }
+function save(){ updateVersionDisplay(); ensureV229State(); localStorage.setItem('wqa_state_v235', JSON.stringify(state)); updateStats(); updateSoundButton(); updateMusicButton(); }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',1500); }
 
 function ensureV229State(){
   if(typeof state.sound === 'undefined') state.sound = true;
   if(typeof state.rewardCount === 'undefined') state.rewardCount = 0;
   if(typeof state.activeListName === 'undefined') state.activeListName = '';
+  if(typeof state.music === 'undefined') state.music = false;
+  if(typeof state.activeListName === 'undefined') state.activeListName = '';
+  if(typeof state.music === 'undefined') state.music = false;
 }
 function playSound(type='success'){
   if(!state.sound) return;
@@ -117,6 +120,43 @@ function updateSoundButton(){
   const b=$('soundToggleBtn');
   if(b) b.textContent = state.sound ? 'Sound: On' : 'Sound: Off';
 }
+
+let bgMusic = null;
+function getBgMusic(){
+  if(!bgMusic){
+    bgMusic = new Audio('assets/audio/lanterns-in-the-library.mp3');
+    bgMusic.loop = true;
+    bgMusic.volume = 0.055; // about half the normal sound effect level
+  }
+  return bgMusic;
+}
+function toggleMusic(){
+  ensureV229State();
+  state.music = !state.music;
+  save();
+  updateMusicButton();
+  if(state.music){
+    const music = getBgMusic();
+    music.volume = 0.055;
+    music.play().catch(()=>toast('Tap Music again if your browser blocked autoplay'));
+  } else if(bgMusic){
+    bgMusic.pause();
+  }
+}
+function updateMusicButton(){
+  const b = $('musicToggleBtn');
+  if(b) b.textContent = state.music ? '🎵 Music On' : '🎵 Music Off';
+}
+function syncMusicState(){
+  ensureV229State();
+  updateMusicButton();
+  if(state.music){
+    const music = getBgMusic();
+    music.volume = 0.055;
+    music.play().catch(()=>{});
+  }
+}
+
 function downloadJson(filename,data){
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
@@ -244,7 +284,7 @@ function loadNamedList(name){
   if(!lists[name]) return;
   state.words=lists[name];
   state.activeListName=name;
-  $('wordInput').value=state.words.join('\n');
+  $('wordInput').value=(state.words||[]).join('\n');
   save();
   updateWordCount();
   loadAllGames();
@@ -406,8 +446,8 @@ function beginHangman(){
       }
       $('hmWord').textContent=hidden.join(' ');
       $('hmInfo').textContent=`Rescue mistakes: ${misses} / 6`;
-      if(hidden.join('').toLowerCase()===w){ document.querySelector('#hangmanGame .knight-svg')?.classList.add('victory'); reward('hangman',12,1,w); setTimeout(loadHangman,1100); }
-      if(misses>=6){ miss(dragonState.word); toast(`The word was ${w}`); setTimeout(loadHangman,900); }
+      if(hidden.join('').toLowerCase()===w){ document.querySelector('#hangmanGame .knight-svg')?.classList.add('victory'); reward('hangman',12,1,w); finishAdventureOr(loadHangman,1100); }
+      if(misses>=6){ miss(w); toast(`The word was ${w}`); finishAdventureOr(loadHangman,900); }
     };
     $('hmKeys').appendChild(b);
   });
@@ -511,10 +551,11 @@ function checkBuilderBlocks(w){
     const stars=elapsed<=10?2:1;
     reward('builder',xp,stars,w);
     toast(`Correct! Speed XP: ${xp}`);
-    setTimeout(loadBuilder,900);
+    finishAdventureOr(loadBuilder,900);
   } else {
-    miss(defenseState.word);
+    miss(w);
     toast('Not quite — rearrange the blocks');
+    if(adventureModeActive) adventureNextGame();
   }
 }
 function clearBuilderBlocks(){
@@ -780,7 +821,7 @@ function dragonChallenge(){
       if(dragonState.dragonHearts<=0){
         reward('dragon',50,5,dragonState.word);
         showChest('Dragon defeated! +50 XP +5 Stars');
-        if(adventureModeActive) adventureNextGame(); else setTimeout(loadDragon,1400);
+        finishAdventureOr(loadDragon,1400);
       } else {
         trackWord(dragonState.word,true);
         state.correct++;
@@ -796,7 +837,7 @@ function dragonChallenge(){
       toast(`Incorrect. Word was ${dragonState.word}`);
       if(dragonState.playerHearts<=0){
         rewardFloat('The dragon wins!');
-        if(adventureModeActive) adventureNextGame(); else setTimeout(loadDragon,1400);
+        finishAdventureOr(loadDragon,1400);
       } else {
         dragonState.word = adventureModeActive ? adventurePickWord() : dragonPickWord();
         setTimeout(dragonFlash,1100);
@@ -827,13 +868,13 @@ function defenseChallenge(){
     <div id="defenseSpell"></div>
     <button onclick="beginDefense()">Restart Defense</button>`;
   makeSpellKeyboard('defenseSpell', (typed, clear)=>{
-    if(typed===defenseState.word){
+    if(String(typed).trim().toLowerCase()===String(defenseState.word).trim().toLowerCase()){
       rewardFloat('Catapult fired! 🪨');
       defenseState.wave++;
       if(defenseState.wave>5){
         reward('defense',30,2,defenseState.word);
         toast('Castle defended!');
-        if(adventureModeActive) adventureNextGame(); else setTimeout(loadDefense,1200);
+        finishAdventureOr(loadDefense,1200);
       } else {
         reward('defense',8,0,defenseState.word);
         defenseState.word=adventureAwareRandom('defense');
@@ -842,9 +883,9 @@ function defenseChallenge(){
     } else {
       defenseState.wall=Math.max(0,defenseState.wall-25);
       $('castleWall').style.width=defenseState.wall+'%';
-      miss();
+      miss(defenseState.word);
       toast(`The goblins hit the wall! Word was ${defenseState.word}`);
-      if(defenseState.wall<=0){ if(adventureModeActive) adventureNextGame(); else setTimeout(loadDefense,1200); }
+      if(defenseState.wall<=0){ finishAdventureOr(loadDefense,1200); }
       else { defenseState.word=adventureAwareRandom('defense'); setTimeout(defenseFlash,1100); }
     }
     clear();
@@ -853,7 +894,7 @@ function defenseChallenge(){
 
 
 
-/* v2.31 Start Game Screens */
+/* v2.35 Start Game Screens */
 function loadHangman(){
   if(!requireWords('hangmanGame')) return;
   startScreen('hangmanGame', `🛡️ Dungeon Rescue`, `Rescue the knight by guessing the spelling word.`, `Start Game`, 'beginHangman');
@@ -882,7 +923,7 @@ function loadDefense(){
 
 
 
-/* v2.31 Adventure Mode with word and game quotas */
+/* v2.35 Adventure Mode with word and game quotas */
 const ADVENTURE_GAMES = [
   {id:'hangman', name:'Dungeon Rescue', start:'beginHangman'},
   {id:'builder', name:'Castle Blocks', start:'beginBuilder'},
@@ -1028,11 +1069,20 @@ function launchAdventureGame(){
 }
 function adventureNextGame(){
   if(!adventureModeActive) return;
-  adventureCurrentGameIndex = (adventureCurrentGameIndex + 1) % ADVENTURE_GAMES.length;
+  adventureCurrentGameIndex = (Number(state.adventure?.currentGameIndex || adventureCurrentGameIndex) + 1) % ADVENTURE_GAMES.length;
   state.adventure.currentGameIndex = adventureCurrentGameIndex;
   save();
   setTimeout(launchAdventureGame, 850);
 }
+
+function finishAdventureOr(callback, delay=900){
+  if(adventureModeActive){
+    adventureNextGame();
+  } else {
+    setTimeout(callback, delay);
+  }
+}
+
 function loadAdventure(){
   ensureAdventureState();
   const prog = adventureProgress();
@@ -1099,7 +1149,6 @@ function recentStatusForWord(s){
   const last3 = h.slice(-3);
   if(last2.length>=2 && last2[0]===false && last2[1]===false) return 'Needs Practice';
   if(last3.length>=3 && last3.every(v=>v===true)) return 'Mastered';
-  if(h.length===0) return 'Needs Practice';
   return 'Learning';
 }
 function recentIcons(s){
@@ -1134,6 +1183,8 @@ function loadReports(){
 }
 function practiceWeakWords(){
  const stats=state.wordStats||{};
+  const currentWords = wordList();
+  currentWords.forEach(w=>{ if(!stats[w]) stats[w]={correct:0,incorrect:0,history:[]}; });
  const weak=Object.entries(stats).filter(([w,s])=>{
    const t=s.correct+s.incorrect; const acc=t?((s.correct/t)*100):0; return t>0 && acc<70;
  }).map(([w])=>w);
@@ -1165,13 +1216,14 @@ function renderSavedLists(){
   }).join('');
 }
 function loadAllGames(){
-  $('wordInput').value=state.words.join('\n');
+  $('wordInput').value=(state.words||[]).join('\n');
   updateWordCount(); updateStats();
   ensureV229State(); loadAdventure(); loadHangman(); loadBuilder(); loadMemory(); loadSearch(); loadDragon(); loadDefense(); loadAchievements(); loadReports(); renderSavedLists(); updateSoundButton();
 }
 
 ensureV229State();
 updateVersionDisplay();
+syncMusicState();
 loadAllGames();
 show('manager');
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('service-worker.js'); }

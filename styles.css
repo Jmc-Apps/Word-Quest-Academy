@@ -769,3 +769,24 @@ button.danger{
 /* v2.31 Adventure quota tables */
 #adventure h3{color:var(--gold);margin-top:22px}
 #adventure .report-table{max-width:820px;margin-bottom:18px}
+
+
+/* v2.35 Background music button */
+.hud-music-btn{
+  width:100%;
+  min-height:34px;
+  padding:7px 10px;
+  border-radius:10px;
+  background:linear-gradient(180deg,#f8d878,#b98222);
+  color:#2a0909;
+  border:2px solid #ffe7a0;
+  font-weight:900;
+  box-shadow:0 4px 0 #6b410f, 0 0 12px rgba(0,0,0,.25);
+  cursor:pointer;
+}
+@media(max-width:760px){
+  .hud-music-btn{
+    width:auto;
+    min-width:120px;
+  }
+}

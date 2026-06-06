@@ -1,11 +1,11 @@
 {
-  "name": "Word Quest Academy v2.31",
-  "short_name": "WordQuest",
+  "name": "Word Quest Academy v2.35",
+  "short_name": "WQA v2.35",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1b0707",
   "theme_color": "#7b1818",
-  "description": "Adventure Mode now requires both all game quotas and every word practised 3 times.",
+  "description": "Adds Lanterns in the Library background music with a HUD toggle.",
   "icons": [
     {
       "src": "icons/icon-192.png",
