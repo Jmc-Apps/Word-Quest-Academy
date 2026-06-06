@@ -16,12 +16,13 @@
     <div class="stats">
       <span>⭐ XP: <b id="xp">0</b></span>
       <span>🏆 Stars: <b id="stars">0</b></span>
-      <span class="version">v2.23</span>
+      <span class="version">v2.31</span>
     </div>
   </header>
 
   <nav id="tabs">
     <button onclick="show('manager')">📚 Words</button>
+    <button onclick="show('adventure')">🗺️ Adventure Mode</button>
     <button onclick="show('hangman')">🛡️ Dungeon Rescue</button>
     <button onclick="show('builder')">🏰 Castle Blocks</button>
     <button onclick="show('memory')">🪄 Wizard Memory</button>
@@ -54,6 +55,14 @@
           </div>
           <div id="savedListsBox"></div>
         </div>
+      </div>
+    </section>
+
+    
+    <section id="adventure" class="page">
+      <div class="card">
+        <h2>🗺️ Adventure Mode</h2>
+        <div id="adventureGame"></div>
       </div>
     </section>
 

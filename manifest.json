@@ -1,11 +1,11 @@
 {
-  "name": "Word Quest Academy v2.23",
+  "name": "Word Quest Academy v2.31",
   "short_name": "WordQuest",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1b0707",
   "theme_color": "#7b1818",
-  "description": "Adds Dragon Battle and Castle Defense memory-spelling mini games.",
+  "description": "Adventure Mode now requires both all game quotas and every word practised 3 times.",
   "icons": [
     {
       "src": "icons/icon-192.png",
